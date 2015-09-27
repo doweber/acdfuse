@@ -8,6 +8,8 @@ import (
 	"bazil.org/fuse/fs"
 	_ "bazil.org/fuse/fs/fstestutil"
 	"github.com/codegangsta/cli"
+
+	"github.com/Reisender/acdfuse/acdfs"
 )
 
 func main() {
@@ -44,7 +46,7 @@ func Run(c *cli.Context) {
 	}
 	defer fuseCtx.Close()
 
-	err = fs.Serve(fuseCtx, FS{})
+	err = fs.Serve(fuseCtx, acdfs.FS{})
 	if err != nil {
 		log.Fatal(err)
 	}

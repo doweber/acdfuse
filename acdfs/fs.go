@@ -1,4 +1,4 @@
-package main
+package acdfs
 
 import (
 	"bazil.org/fuse/fs"
