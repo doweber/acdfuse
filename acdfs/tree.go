@@ -9,9 +9,11 @@ import (
 )
 
 type TreeEntry struct {
-	E    fuse.Dirent
-	Mode os.FileMode
-	Kids []*TreeEntry
+	E               fuse.Dirent
+	Mode            os.FileMode
+	Kids            []*TreeEntry
+	sizeCallback    func() uint64
+	contentCallback func() ([]byte, error)
 }
 
 func NewDirEntry(inode uint64, name string, kids []*TreeEntry) *TreeEntry {
@@ -21,11 +23,13 @@ func NewDirEntry(inode uint64, name string, kids []*TreeEntry) *TreeEntry {
 		Kids: kids,
 	}
 }
-func NewFileEntry(inode uint64, name string) *TreeEntry {
+func NewFileEntry(inode uint64, name string, size func() uint64, content func() ([]byte, error)) *TreeEntry {
 	return &TreeEntry{
-		E:    fuse.Dirent{Inode: inode, Name: name, Type: fuse.DT_File},
-		Mode: 0444,
-		Kids: []*TreeEntry{},
+		E:               fuse.Dirent{Inode: inode, Name: name, Type: fuse.DT_File},
+		Mode:            0444,
+		Kids:            []*TreeEntry{},
+		sizeCallback:    size,
+		contentCallback: content,
 	}
 }
 
@@ -34,7 +38,7 @@ func (this *TreeEntry) Attr(ctx context.Context, a *fuse.Attr) error {
 	a.Mode = this.Mode
 
 	if this.E.Type == fuse.DT_File {
-		a.Size = uint64(len(greeting))
+		a.Size = this.sizeCallback()
 	}
 
 	return nil
@@ -60,5 +64,5 @@ func (this *TreeEntry) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 }
 
 func (this *TreeEntry) ReadAll(ctx context.Context) ([]byte, error) {
-	return []byte(greeting), nil
+	return this.contentCallback()
 }
