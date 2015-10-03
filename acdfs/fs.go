@@ -23,6 +23,17 @@ var foo = TreeEntry{
 	Mode: os.ModeDir | 0555,
 	Kids: []*TreeEntry{
 		&TreeEntry{
+			E:    fuse.Dirent{Inode: 4, Name: "foodir", Type: fuse.DT_Dir},
+			Mode: os.ModeDir | 0555,
+			Kids: []*TreeEntry{
+				&TreeEntry{
+					E:    fuse.Dirent{Inode: 2, Name: "fooHello", Type: fuse.DT_File},
+					Mode: 0444,
+					Kids: []*TreeEntry{},
+				},
+			},
+		},
+		&TreeEntry{
 			E:    fuse.Dirent{Inode: 2, Name: "fooHello", Type: fuse.DT_File},
 			Mode: 0444,
 			Kids: []*TreeEntry{},
