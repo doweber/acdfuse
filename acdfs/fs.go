@@ -2,9 +2,7 @@ package acdfs
 
 import (
 	"log"
-	"os"
 
-	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
 )
 
@@ -13,35 +11,15 @@ type FS struct{}
 
 func (this FS) Root() (fs.Node, error) {
 	log.Println("FS-Root", this)
-	return &foo, nil
+	return foo, nil
 }
 
 var greeting = "hello, world\n"
 
-var foo = TreeEntry{
-	E:    fuse.Dirent{Inode: 1, Name: "root", Type: fuse.DT_Dir},
-	Mode: os.ModeDir | 0555,
-	Kids: []*TreeEntry{
-		&TreeEntry{
-			E:    fuse.Dirent{Inode: 4, Name: "foodir", Type: fuse.DT_Dir},
-			Mode: os.ModeDir | 0555,
-			Kids: []*TreeEntry{
-				&TreeEntry{
-					E:    fuse.Dirent{Inode: 2, Name: "fooHello", Type: fuse.DT_File},
-					Mode: 0444,
-					Kids: []*TreeEntry{},
-				},
-			},
-		},
-		&TreeEntry{
-			E:    fuse.Dirent{Inode: 2, Name: "fooHello", Type: fuse.DT_File},
-			Mode: 0444,
-			Kids: []*TreeEntry{},
-		},
-		&TreeEntry{
-			E:    fuse.Dirent{Inode: 3, Name: "barHello", Type: fuse.DT_File},
-			Mode: 0444,
-			Kids: []*TreeEntry{},
-		},
-	},
-}
+var foo = NewDirEntry(1, "root", []*TreeEntry{
+	NewDirEntry(2, "foodir", []*TreeEntry{
+		NewFileEntry(3, "fooHello"),
+	}),
+	NewFileEntry(3, "fooHello"),
+	NewFileEntry(4, "barHello"),
+})

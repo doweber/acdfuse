@@ -8,14 +8,25 @@ import (
 	"golang.org/x/net/context"
 )
 
-type Tree struct {
-	Root *TreeEntry
-}
-
 type TreeEntry struct {
 	E    fuse.Dirent
 	Mode os.FileMode
 	Kids []*TreeEntry
+}
+
+func NewDirEntry(inode uint64, name string, kids []*TreeEntry) *TreeEntry {
+	return &TreeEntry{
+		E:    fuse.Dirent{Inode: inode, Name: name, Type: fuse.DT_Dir},
+		Mode: os.ModeDir | 0555,
+		Kids: kids,
+	}
+}
+func NewFileEntry(inode uint64, name string) *TreeEntry {
+	return &TreeEntry{
+		E:    fuse.Dirent{Inode: inode, Name: name, Type: fuse.DT_File},
+		Mode: 0444,
+		Kids: []*TreeEntry{},
+	}
 }
 
 func (this *TreeEntry) Attr(ctx context.Context, a *fuse.Attr) error {
