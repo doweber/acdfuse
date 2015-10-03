@@ -8,7 +8,8 @@ import (
 )
 
 // File implements both Node and Handle for the hello file.
-type File struct{}
+type File struct {
+}
 
 const greeting = "hello, world\n"
 
