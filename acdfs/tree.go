@@ -12,15 +12,16 @@ type TreeEntry struct {
 	E               fuse.Dirent
 	Mode            os.FileMode
 	Kids            []*TreeEntry
+	kidsCallback    func() []*TreeEntry
 	sizeCallback    func() uint64
 	contentCallback func() ([]byte, error)
 }
 
-func NewDirEntry(inode uint64, name string, kids []*TreeEntry) *TreeEntry {
+func NewDirEntry(inode uint64, name string, kidsCallback func() []*TreeEntry) *TreeEntry {
 	return &TreeEntry{
-		E:    fuse.Dirent{Inode: inode, Name: name, Type: fuse.DT_Dir},
-		Mode: os.ModeDir | 0555,
-		Kids: kids,
+		E:            fuse.Dirent{Inode: inode, Name: name, Type: fuse.DT_Dir},
+		Mode:         os.ModeDir | 0555,
+		kidsCallback: kidsCallback,
 	}
 }
 func NewFileEntry(inode uint64, name string, size func() uint64, content func() ([]byte, error)) *TreeEntry {
@@ -45,6 +46,7 @@ func (this *TreeEntry) Attr(ctx context.Context, a *fuse.Attr) error {
 }
 
 func (this *TreeEntry) Lookup(ctx context.Context, name string) (fs.Node, error) {
+	this.Kids = this.kidsCallback()
 	for _, k := range this.Kids {
 		if k.E.Name == name {
 			return k, nil
@@ -55,6 +57,7 @@ func (this *TreeEntry) Lookup(ctx context.Context, name string) (fs.Node, error)
 
 func (this *TreeEntry) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 	dirDirs := []fuse.Dirent{}
+	this.Kids = this.kidsCallback()
 
 	for _, k := range this.Kids {
 		dirDirs = append(dirDirs, k.E)

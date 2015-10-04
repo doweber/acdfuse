@@ -6,12 +6,16 @@ import "bazil.org/fuse/fs"
 type FS struct{}
 
 func (this FS) Root() (fs.Node, error) {
-	return NewDirEntry(1, "root", []*TreeEntry{
-		NewDirEntry(2, "foodir", []*TreeEntry{
+	return NewDirEntry(1, "root", func() []*TreeEntry {
+		return []*TreeEntry{
+			NewDirEntry(2, "foodir", func() []*TreeEntry {
+				return []*TreeEntry{
+					NewFileEntry(3, "fooHello", getContentSize, getContent),
+				}
+			}),
 			NewFileEntry(3, "fooHello", getContentSize, getContent),
-		}),
-		NewFileEntry(3, "fooHello", getContentSize, getContent),
-		NewFileEntry(4, "barHello", getContentSize, getContent),
+			NewFileEntry(4, "barHello", getContentSize, getContent),
+		}
 	}), nil
 }
 
