@@ -78,6 +78,28 @@ func TestConfig(c *cli.Context) {
 	}
 
 	fmt.Println(cfg)
+
+	// now try the metadata url
+	resp, err = client.Get(fmt.Sprintf("%s/nodes?filters=isRoot:true", cfg.MetadataUrl))
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(resp.Status)
+	body, err = ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
+	list := &acdfs.MetadataList{}
+	if err := json.Unmarshal(body, list); err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("list length:", len(list.Data))
+
+	for _, v := range list.Data {
+		fmt.Println(v)
+	}
 }
 
 func auth(c *cli.Context) {
