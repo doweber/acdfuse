@@ -11,6 +11,8 @@ import (
 
 	//"golang.org/x/net/context"
 	"golang.org/x/oauth2"
+
+	"github.com/Reisender/acdfuse/acdfs"
 )
 
 var configPath = "./config.json"
@@ -43,9 +45,39 @@ func main() {
 			Usage:  "save out the config",
 			Action: SaveConfig,
 		},
+		{
+			Name:   "test",
+			Usage:  "test the config",
+			Action: TestConfig,
+		},
 	}
 
 	app.Run(os.Args)
+}
+
+func TestConfig(c *cli.Context) {
+	auth(c)
+
+	client := conf.Client(oauth2.NoContext, token)
+	resp, err := client.Get("https://drive.amazonaws.com/drive/v1/account/endpoint")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(resp.Status)
+	body, err := ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("%s", body)
+
+	cfg := &acdfs.Config{}
+	if err := json.Unmarshal(body, cfg); err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(cfg)
 }
 
 func auth(c *cli.Context) {
