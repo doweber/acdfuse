@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 
 	"github.com/codegangsta/cli"
@@ -80,12 +81,24 @@ func TestConfig(c *cli.Context) {
 	fmt.Println(cfg)
 
 	// now try the metadata url
-	resp, err = client.Get(fmt.Sprintf("%s/nodes?filters=isRoot:true", cfg.MetadataUrl))
+	list := listNodes("nodes?filters=isRoot:true", client, cfg)
+
+	if len(list.Data) != 1 {
+		log.Fatal("no root node")
+	}
+
+	topLevelList := listNodes(fmt.Sprintf("nodes/%s/children", list.Data[0].Id), client, cfg)
+	fmt.Println("list length:", len(topLevelList.Data))
+
+}
+
+func listNodes(urlRequest string, client *http.Client, cfg *acdfs.Config) *acdfs.MetadataList {
+	resp, err := client.Get(fmt.Sprintf("%s/%s", cfg.MetadataUrl, urlRequest))
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Println(resp.Status)
-	body, err = ioutil.ReadAll(resp.Body)
+	body, err := ioutil.ReadAll(resp.Body)
 	resp.Body.Close()
 	if err != nil {
 		log.Fatal(err)
@@ -100,6 +113,8 @@ func TestConfig(c *cli.Context) {
 	for _, v := range list.Data {
 		fmt.Println(v)
 	}
+
+	return list
 }
 
 func auth(c *cli.Context) {
