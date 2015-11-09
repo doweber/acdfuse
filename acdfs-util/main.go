@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"net/http"
 	"os"
 
 	"github.com/codegangsta/cli"
@@ -60,73 +59,31 @@ func TestConfig(c *cli.Context) {
 	auth(c)
 
 	client := conf.Client(oauth2.NoContext, token)
-	resp, err := client.Get("https://drive.amazonaws.com/drive/v1/account/endpoint")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println(resp.Status)
-	body, err := ioutil.ReadAll(resp.Body)
-	resp.Body.Close()
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Printf("%s", body)
-
-	cfg := &acdfs.Config{}
-	if err := json.Unmarshal(body, cfg); err != nil {
-		log.Fatal(err)
-	}
-
+	cfg := acdfs.NewEndpointConfig(client)
 	fmt.Println(cfg)
 
 	// now try the metadata url
-	list := listNodes("nodes?filters=isRoot:true", client, cfg)
+	list := acdfs.ListNodes("nodes?filters=isRoot:true", client, cfg)
 
 	if len(list.Data) != 1 {
 		log.Fatal("no root node")
 	}
 
-	topLevelList := listNodes(fmt.Sprintf("nodes/%s/children", list.Data[0].Id), client, cfg)
+	topLevelList := acdfs.ListNodes(fmt.Sprintf("nodes/%s/children", list.Data[0].Id), client, cfg)
 	fmt.Println("list length:", len(topLevelList.Data))
 
 }
 
-func listNodes(urlRequest string, client *http.Client, cfg *acdfs.Config) *acdfs.MetadataList {
-	resp, err := client.Get(fmt.Sprintf("%s/%s", cfg.MetadataUrl, urlRequest))
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println(resp.Status)
-	body, err := ioutil.ReadAll(resp.Body)
-	resp.Body.Close()
-	if err != nil {
-		log.Fatal(err)
-	}
-	list := &acdfs.MetadataList{}
-	if err := json.Unmarshal(body, list); err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println("list length:", len(list.Data))
-
-	for _, v := range list.Data {
-		fmt.Println(v)
-	}
-
-	return list
-}
-
 func auth(c *cli.Context) {
 
-	err := LoadConfig(configPath, conf)
+	err := acdfs.LoadConsumerConfig(configPath, conf)
 	if err != nil {
 		fmt.Println("config file not found at", configPath)
 		return
 	}
 
 	// see if token exists
-	if err := LoadToken(tokenPath, token); err != nil {
+	if err := acdfs.LoadAccessToken(tokenPath, token); err != nil {
 		// no token or problem with it so go get one
 
 		url := conf.AuthCodeURL("state", oauth2.AccessTypeOffline)
@@ -152,24 +109,6 @@ func auth(c *cli.Context) {
 	//client.Get("...")
 }
 
-func LoadToken(tokenPath string, token *oauth2.Token) error {
-	if _, err := os.Stat(tokenPath); os.IsNotExist(err) {
-		fmt.Printf("token file not found: %s", tokenPath)
-		return err
-	}
-
-	b, err := ioutil.ReadFile(tokenPath)
-	if err != nil {
-		return err
-	}
-
-	if err := json.Unmarshal(b, token); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func SaveToken() {
 	var b []byte
 	b, _ = json.Marshal(token)
@@ -181,23 +120,4 @@ func SaveConfig(c *cli.Context) {
 	var b []byte
 	b, _ = json.Marshal(conf)
 	ioutil.WriteFile(configPath, b, 0600)
-}
-
-// Load the consumer key and secret in from the config file
-func LoadConfig(configPath string, config *oauth2.Config) error {
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		fmt.Printf("config file not found: %s", configPath)
-		return err
-	}
-
-	b, err := ioutil.ReadFile(configPath)
-	if err != nil {
-		return err
-	}
-
-	if err := json.Unmarshal(b, config); err != nil {
-		return err
-	}
-
-	return nil
 }

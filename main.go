@@ -28,7 +28,7 @@ func main() {
 }
 
 func Run(c *cli.Context) {
-	println("boom! I say! and mount at", c.String("mountpoint"))
+	println("Amazon Cloud Drive mount at", c.String("mountpoint"))
 	mountpoint := c.String("mountpoint")
 	if mountpoint == "" {
 		log.Fatal("no mountpoint! try running \"acdfuse help\"")
