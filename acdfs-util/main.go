@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 
 	"github.com/codegangsta/cli"
@@ -14,6 +15,9 @@ import (
 
 	"github.com/Reisender/acdfuse/acdfs"
 )
+
+var nodes = make(map[string]*acdfs.Metadata)
+var parents = make(map[string][]string)
 
 var configPath = "./config.json"
 var tokenPath = "./token.json"
@@ -55,6 +59,18 @@ func main() {
 	app.Run(os.Args)
 }
 
+func getPage(list *acdfs.MetadataList, client *http.Client, cfg *acdfs.EndpointConfig) {
+	fmt.Println("loading page from startToken ", list.NextToken)
+	for _, v := range list.Data {
+		nodes[v.Id] = &v
+		v.ParentId = v.Parents[len(v.Parents)-1]
+	}
+	if list.Count == 200 {
+		nextList := acdfs.ListNodes(fmt.Sprintf("nodes?startToken=%s", list.NextToken), client, cfg)
+		getPage(nextList, client, cfg)
+	}
+}
+
 func TestConfig(c *cli.Context) {
 	auth(c)
 
@@ -62,15 +78,30 @@ func TestConfig(c *cli.Context) {
 	cfg := acdfs.NewEndpointConfig(client)
 	fmt.Println(cfg)
 
-	// now try the metadata url
-	list := acdfs.ListNodes("nodes?filters=isRoot:true", client, cfg)
+	root := acdfs.GetRootNode(client, cfg)
 
-	if len(list.Data) != 1 {
-		log.Fatal("no root node")
+	// now try the metadata url
+	list := acdfs.ListNodes("nodes", client, cfg)
+
+	for _, v := range list.Data {
+		nodes[v.Id] = &v
+		v.ParentId = v.Parents[len(v.Parents)-1]
 	}
 
-	topLevelList := acdfs.ListNodes(fmt.Sprintf("nodes/%s/children", list.Data[0].Id), client, cfg)
-	fmt.Println("list length:", len(topLevelList.Data))
+	fmt.Println("getting the pages")
+
+	//getPage(list, client, cfg)
+
+	fmt.Println("top level count", nodes[root.Id])
+
+	/*
+			if len(list.Data) != 1 {
+				log.Fatal("no root node")
+			}
+
+		topLevelList := acdfs.ListNodes(fmt.Sprintf("nodes/%s/children", list.Data[0].Id), client, cfg)
+		fmt.Println("list length:", len(topLevelList.Data))
+	*/
 
 }
 
