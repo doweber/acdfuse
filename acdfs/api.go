@@ -21,7 +21,7 @@ func ListNodes(urlRequest string, client *http.Client, cfg *EndpointConfig) *Met
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(resp.Status)
+	//fmt.Println(resp.Status)
 	body, err := ioutil.ReadAll(resp.Body)
 	resp.Body.Close()
 	if err != nil {
@@ -33,10 +33,6 @@ func ListNodes(urlRequest string, client *http.Client, cfg *EndpointConfig) *Met
 	}
 
 	fmt.Println("list length:", len(list.Data))
-
-	for _, v := range list.Data {
-		fmt.Println(v)
-	}
 
 	return list
 }
