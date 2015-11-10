@@ -9,6 +9,9 @@ import (
 	"bazil.org/fuse/fs"
 )
 
+var inodes = make(map[uint64]*TreeEntry)
+var inodeKids = make(map[uint64][]*TreeEntry)
+
 // FS implements the hello world file system.
 type FS struct{}
 
@@ -22,31 +25,21 @@ func init() {
 	endpointCfg = NewEndpointConfig(apiClient)
 }
 
+var inodeCnt uint64 = 0
+
+func genInode() uint64 {
+	inodeCnt += 1
+	return inodeCnt
+}
+
 func (this FS) Root() (fs.Node, error) {
 
 	root := GetRootNode(apiClient, endpointCfg)
-	topLevelList := ListNodes(fmt.Sprintf("nodes/%s/children", root.Id), apiClient, endpointCfg)
 
-	kids := []*TreeEntry{}
+	rootNode := NewDirEntry(genInode(), "root", getKidsFunc)
+	rootNode.CustomId = root.Id
 
-	getKidsFunc := func() []*TreeEntry {
-		return []*TreeEntry{}
-	}
-
-	for i, v := range topLevelList.Data {
-		switch v.Kind {
-		case "FILE":
-			kids = append(kids, NewFileEntry(uint64(i+1), v.Name, getContentSize, getContent))
-			break
-		case "FOLDER":
-			kids = append(kids, NewDirEntry(uint64(i+1), v.Name, getKidsFunc))
-			break
-		}
-	}
-
-	return NewDirEntry(1, "root", func() []*TreeEntry {
-		return kids
-	}), nil
+	return rootNode, nil
 
 	/*
 		return NewDirEntry(1, "root", func() []*TreeEntry {
@@ -65,9 +58,42 @@ func (this FS) Root() (fs.Node, error) {
 
 var greeting = "hello, world\n"
 
-func getContentSize() uint64 {
+func getKidsFunc(node *TreeEntry) []*TreeEntry {
+	if kids, ok := inodeKids[node.E.Inode]; ok {
+		// if exists in cache, use that
+		return kids
+	} else {
+		fmt.Println("building cached copy of kids")
+		// otherwise load it
+		apiList := ListNodes(fmt.Sprintf("nodes/%s/children", node.CustomId), apiClient, endpointCfg)
+
+		kids := []*TreeEntry{}
+
+		for _, v := range apiList.Data {
+			var newNode *TreeEntry
+			switch v.Kind {
+			case "FILE":
+				newNode = NewFileEntry(genInode(), v.Name, getContentSize, getContent)
+				kids = append(kids, newNode)
+				break
+			case "FOLDER":
+				newNode = NewDirEntry(genInode(), v.Name, getKidsFunc)
+				kids = append(kids, newNode)
+				break
+			}
+
+			newNode.CustomId = v.Id
+			inodes[newNode.E.Inode] = newNode
+		}
+
+		inodeKids[node.E.Inode] = kids
+	}
+	return []*TreeEntry{}
+}
+
+func getContentSize(node *TreeEntry) uint64 {
 	return uint64(len(greeting))
 }
-func getContent() ([]byte, error) {
+func getContent(node *TreeEntry) ([]byte, error) {
 	return []byte(greeting), nil
 }

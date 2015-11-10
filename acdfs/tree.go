@@ -8,23 +8,28 @@ import (
 	"golang.org/x/net/context"
 )
 
+type KidsCallbackFunc func(*TreeEntry) []*TreeEntry
+type SizeCallbackFunc func(*TreeEntry) uint64
+type ContentCallbackFunc func(*TreeEntry) ([]byte, error)
+
 type TreeEntry struct {
 	E               fuse.Dirent
 	Mode            os.FileMode
+	CustomId        string
 	Kids            []*TreeEntry
-	kidsCallback    func() []*TreeEntry
-	sizeCallback    func() uint64
-	contentCallback func() ([]byte, error)
+	kidsCallback    KidsCallbackFunc
+	sizeCallback    SizeCallbackFunc
+	contentCallback ContentCallbackFunc
 }
 
-func NewDirEntry(inode uint64, name string, kidsCallback func() []*TreeEntry) *TreeEntry {
+func NewDirEntry(inode uint64, name string, kidsCallback KidsCallbackFunc) *TreeEntry {
 	return &TreeEntry{
 		E:            fuse.Dirent{Inode: inode, Name: name, Type: fuse.DT_Dir},
 		Mode:         os.ModeDir | 0555,
 		kidsCallback: kidsCallback,
 	}
 }
-func NewFileEntry(inode uint64, name string, size func() uint64, content func() ([]byte, error)) *TreeEntry {
+func NewFileEntry(inode uint64, name string, size SizeCallbackFunc, content ContentCallbackFunc) *TreeEntry {
 	return &TreeEntry{
 		E:               fuse.Dirent{Inode: inode, Name: name, Type: fuse.DT_File},
 		Mode:            0444,
@@ -39,14 +44,14 @@ func (this *TreeEntry) Attr(ctx context.Context, a *fuse.Attr) error {
 	a.Mode = this.Mode
 
 	if this.E.Type == fuse.DT_File {
-		a.Size = this.sizeCallback()
+		a.Size = this.sizeCallback(this)
 	}
 
 	return nil
 }
 
 func (this *TreeEntry) Lookup(ctx context.Context, name string) (fs.Node, error) {
-	this.Kids = this.kidsCallback()
+	this.Kids = this.kidsCallback(this)
 	for _, k := range this.Kids {
 		if k.E.Name == name {
 			return k, nil
@@ -57,7 +62,7 @@ func (this *TreeEntry) Lookup(ctx context.Context, name string) (fs.Node, error)
 
 func (this *TreeEntry) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 	dirDirs := []fuse.Dirent{}
-	this.Kids = this.kidsCallback()
+	this.Kids = this.kidsCallback(this)
 
 	for _, k := range this.Kids {
 		dirDirs = append(dirDirs, k.E)
@@ -67,5 +72,5 @@ func (this *TreeEntry) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 }
 
 func (this *TreeEntry) ReadAll(ctx context.Context) ([]byte, error) {
-	return this.contentCallback()
+	return this.contentCallback(this)
 }
