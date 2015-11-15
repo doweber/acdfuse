@@ -18,7 +18,7 @@ type FS struct{}
 var apiClient *http.Client
 var endpointCfg *EndpointConfig
 
-func init() {
+func initApi() {
 	auth()
 	apiClient = conf.Client(oauth2.NoContext, token)
 
@@ -33,6 +33,9 @@ func genInode() uint64 {
 }
 
 func (this FS) Root() (fs.Node, error) {
+	if apiClient == nil {
+		initApi()
+	}
 
 	root := GetRootNode(apiClient, endpointCfg)
 

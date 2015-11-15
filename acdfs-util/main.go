@@ -14,6 +14,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/Reisender/acdfuse/acdfs"
+	"github.com/skratchdot/open-golang/open"
 )
 
 var nodes = make(map[string]*acdfs.Metadata)
@@ -119,6 +120,7 @@ func auth(c *cli.Context) {
 
 		url := conf.AuthCodeURL("state", oauth2.AccessTypeOffline)
 		fmt.Printf("Visit the URL for the auth dialog: %v", url)
+		open.Run(url)
 
 		print("\nenter code: ")
 		var code string

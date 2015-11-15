@@ -78,7 +78,8 @@ func LoadConsumerConfig(configPath string, config *oauth2.Config) error {
 
 func LoadAccessToken(tokenPath string, token *oauth2.Token) error {
 	if _, err := os.Stat(tokenPath); os.IsNotExist(err) {
-		fmt.Printf("token file not found: %s", tokenPath)
+		fmt.Printf("token file not found: %s\n", tokenPath)
+		fmt.Println(err)
 		return err
 	}
 
