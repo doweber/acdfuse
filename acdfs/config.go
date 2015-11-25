@@ -94,3 +94,79 @@ func LoadAccessToken(tokenPath string, token *oauth2.Token) error {
 
 	return nil
 }
+
+func LoadMetadata(client *http.Client, cfg *EndpointConfig) (nodes []Metadata, err error) {
+	nodesPath := "./nodes.json"
+	if err = LoadMetadataFromFile(&nodes, nodesPath); err == nil {
+		return
+	}
+
+	// if we couldn't load from file, load from API
+	if len(nodes) == 0 {
+
+		// now try the metadata url
+		list, err := ListNodes("nodes", client, cfg)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		fmt.Println("List Count:", list.Count)
+
+		for _, v := range list.Data {
+			nodes = append(nodes, v)
+		}
+
+		//progressBars.Println("getting the pages")
+		//barProgress1 := progressBars.MakeBar(list.Count, "loading...")
+		//go progressBars.Listen()
+
+		getPage(list.NextToken, client, cfg, func(newList *MetadataPage) {
+			//barProgress1(len(nodes))
+			nodes = append(nodes, newList.Data...)
+		})
+
+		SaveMetadataToFile(&nodes, nodesPath)
+	}
+
+	return
+}
+
+func LoadMetadataFromFile(nodes *[]Metadata, nodesPath string) error {
+	if _, err := os.Stat(nodesPath); os.IsNotExist(err) {
+		fmt.Printf("nodes file not found: %s\n", nodesPath)
+		fmt.Println(err)
+		return err
+	}
+
+	b, err := ioutil.ReadFile(nodesPath)
+	if err != nil {
+		return err
+	}
+
+	if err := json.Unmarshal(b, nodes); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func SaveMetadataToFile(nodes *[]Metadata, nodesPath string) {
+	fmt.Println("saving nodes")
+	var b []byte
+	b, _ = json.Marshal(nodes)
+	ioutil.WriteFile(nodesPath, b, 0600)
+	fmt.Println("saved nodes")
+}
+
+func getPage(nextToken string, client *http.Client, cfg *EndpointConfig, callback func(*MetadataPage)) {
+	list, err := ListNodes(fmt.Sprintf("nodes?startToken=%s&count=800", nextToken), client, cfg)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	callback(list)
+
+	if len(list.Data) == 200 {
+		getPage(list.NextToken, client, cfg, callback)
+	}
+}

@@ -9,30 +9,33 @@ import (
 )
 
 func GetRootNode(client *http.Client, cfg *EndpointConfig) *Metadata {
-	list := ListNodes("nodes?filters=isRoot:true", client, cfg)
+	list, err := ListNodes("nodes?filters=isRoot:true", client, cfg)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	if len(list.Data) != 1 {
 		log.Fatal("no root node")
 	}
 	return &list.Data[0]
 }
 
-func ListNodes(urlRequest string, client *http.Client, cfg *EndpointConfig) *MetadataList {
+func ListNodes(urlRequest string, client *http.Client, cfg *EndpointConfig) (list *MetadataPage, err error) {
 	resp, err := client.Get(fmt.Sprintf("%s/%s", cfg.MetadataUrl, urlRequest))
 	if err != nil {
-		log.Fatal(err)
+		return
 	}
-	//fmt.Println(resp.Status)
+	if resp.StatusCode == 500 {
+		log.Println("500 error, retry")
+		return ListNodes(urlRequest, client, cfg)
+	}
 	body, err := ioutil.ReadAll(resp.Body)
 	resp.Body.Close()
 	if err != nil {
-		log.Fatal(err)
+		return
 	}
-	list := &MetadataList{}
-	if err := json.Unmarshal(body, list); err != nil {
-		log.Fatal(err)
-	}
+	list = &MetadataPage{}
+	err = json.Unmarshal(body, list)
 
-	fmt.Println("list length:", len(list.Data))
-
-	return list
+	return
 }

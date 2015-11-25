@@ -2,6 +2,7 @@ package acdfs
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 
 	"golang.org/x/oauth2"
@@ -38,9 +39,40 @@ func (this FS) Root() (fs.Node, error) {
 	}
 
 	root := GetRootNode(apiClient, endpointCfg)
-
-	rootNode := NewDirEntry(genInode(), "root", getKidsFunc)
+	rootNode := NewDirEntry(genInode(), "root", KidsFunc)
+	rootNode.Kids = []*TreeEntry{}
 	rootNode.CustomId = root.Id
+
+	nodes, _ := LoadMetadata(apiClient, endpointCfg)
+
+	// create entire tree structure from metadata nodes
+	tNodes := make(map[string]*TreeEntry)
+	for _, n := range nodes {
+		switch n.Kind {
+		case FILE:
+			tNodes[n.Id] = NewFileEntry(genInode(), n.Name, getContentSize, getContent)
+			tNodes[n.Id].CustomId = n.Id
+		case FOLDER:
+			if n.Id == root.Id {
+				tNodes[n.Id] = rootNode
+			} else {
+				tNodes[n.Id] = NewDirEntry(genInode(), n.Name, KidsFunc)
+				tNodes[n.Id].Kids = []*TreeEntry{}
+				tNodes[n.Id].CustomId = n.Id
+			}
+		}
+	}
+
+	// fill in the links to the kids
+	for _, n := range nodes {
+		if n.Kind == FOLDER || n.Kind == FILE {
+			for _, p := range n.Parents {
+				tNodes[p].Kids = append(tNodes[p].Kids, tNodes[n.Id])
+			}
+		}
+	}
+
+	fmt.Println("root kids:", len(rootNode.Kids))
 
 	return rootNode, nil
 
@@ -68,7 +100,11 @@ func getKidsFunc(node *TreeEntry) []*TreeEntry {
 	} else {
 		fmt.Println("building cached copy of kids")
 		// otherwise load it
-		apiList := ListNodes(fmt.Sprintf("nodes/%s/children", node.CustomId), apiClient, endpointCfg)
+		apiList, err := ListNodes(fmt.Sprintf("nodes/%s/children", node.CustomId), apiClient, endpointCfg)
+		if err != nil {
+			log.Println(err)
+			return []*TreeEntry{}
+		}
 
 		kids := []*TreeEntry{}
 

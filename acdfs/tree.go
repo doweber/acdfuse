@@ -12,6 +12,10 @@ type KidsCallbackFunc func(*TreeEntry) []*TreeEntry
 type SizeCallbackFunc func(*TreeEntry) uint64
 type ContentCallbackFunc func(*TreeEntry) ([]byte, error)
 
+func KidsFunc(t *TreeEntry) []*TreeEntry {
+	return t.Kids
+}
+
 type TreeEntry struct {
 	E               fuse.Dirent
 	Mode            os.FileMode

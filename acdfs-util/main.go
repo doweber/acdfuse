@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"net/http"
 	"os"
 
 	"github.com/codegangsta/cli"
+
+	//"github.com/sethgrid/multibar"
 
 	//"golang.org/x/net/context"
 	"golang.org/x/oauth2"
@@ -17,8 +18,9 @@ import (
 	"github.com/skratchdot/open-golang/open"
 )
 
-var nodes = make(map[string]*acdfs.Metadata)
 var parents = make(map[string][]string)
+
+//var progressBars, _ = multibar.New()
 
 var configPath = "./config.json"
 var tokenPath = "./token.json"
@@ -60,50 +62,21 @@ func main() {
 	app.Run(os.Args)
 }
 
-func getPage(list *acdfs.MetadataList, client *http.Client, cfg *acdfs.EndpointConfig) {
-	fmt.Println("loading page from startToken ", list.NextToken)
-	for _, v := range list.Data {
-		nodes[v.Id] = &v
-		v.ParentId = v.Parents[len(v.Parents)-1]
-	}
-	if list.Count == 200 {
-		nextList := acdfs.ListNodes(fmt.Sprintf("nodes?startToken=%s", list.NextToken), client, cfg)
-		getPage(nextList, client, cfg)
-	}
-}
-
 func TestConfig(c *cli.Context) {
 	auth(c)
 
 	client := conf.Client(oauth2.NoContext, token)
 	cfg := acdfs.NewEndpointConfig(client)
-	fmt.Println(cfg)
+
+	nodes, _ := acdfs.LoadMetadata(client, cfg)
 
 	root := acdfs.GetRootNode(client, cfg)
 
-	// now try the metadata url
-	list := acdfs.ListNodes("nodes", client, cfg)
-
-	for _, v := range list.Data {
-		nodes[v.Id] = &v
-		v.ParentId = v.Parents[len(v.Parents)-1]
+	for _, v := range nodes {
+		if len(v.Parents) > 0 && v.Parents[0] == root.Id {
+			fmt.Println("top level node", v)
+		}
 	}
-
-	fmt.Println("getting the pages")
-
-	//getPage(list, client, cfg)
-
-	fmt.Println("top level count", nodes[root.Id])
-
-	/*
-			if len(list.Data) != 1 {
-				log.Fatal("no root node")
-			}
-
-		topLevelList := acdfs.ListNodes(fmt.Sprintf("nodes/%s/children", list.Data[0].Id), client, cfg)
-		fmt.Println("list length:", len(topLevelList.Data))
-	*/
-
 }
 
 func auth(c *cli.Context) {
