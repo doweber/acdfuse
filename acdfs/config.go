@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/sethgrid/multibar"
 	"golang.org/x/oauth2"
 )
 
@@ -112,16 +113,15 @@ func LoadMetadata(client *http.Client, cfg *EndpointConfig) (nodes []Metadata, e
 
 		fmt.Println("List Count:", list.Count)
 
-		for _, v := range list.Data {
-			nodes = append(nodes, v)
-		}
+		nodes = append(nodes, list.Data...)
 
-		//progressBars.Println("getting the pages")
-		//barProgress1 := progressBars.MakeBar(list.Count, "loading...")
-		//go progressBars.Listen()
+		var progressBars, _ = multibar.New()
+		progressBars.Println("getting the pages")
+		barProgress1 := progressBars.MakeBar(list.Count, "loading...")
+		go progressBars.Listen()
 
 		getPage(list.NextToken, client, cfg, func(newList *MetadataPage) {
-			//barProgress1(len(nodes))
+			barProgress1(len(nodes))
 			nodes = append(nodes, newList.Data...)
 		})
 

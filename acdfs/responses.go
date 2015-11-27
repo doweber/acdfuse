@@ -19,4 +19,13 @@ type Metadata struct {
 	Version  uint
 	Status   string
 	Parents  []string
+	Raw      string
+
+	ContentProperties struct {
+		Version     uint64
+		Md5         string
+		Size        uint64
+		ContentType string
+		Extension   string
+	}
 }

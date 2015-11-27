@@ -20,6 +20,7 @@ type TreeEntry struct {
 	E               fuse.Dirent
 	Mode            os.FileMode
 	CustomId        string
+	Metadata        Metadata
 	Kids            []*TreeEntry
 	kidsCallback    KidsCallbackFunc
 	sizeCallback    SizeCallbackFunc

@@ -2,7 +2,6 @@ package acdfs
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 
 	"golang.org/x/oauth2"
@@ -52,13 +51,16 @@ func (this FS) Root() (fs.Node, error) {
 		case FILE:
 			tNodes[n.Id] = NewFileEntry(genInode(), n.Name, getContentSize, getContent)
 			tNodes[n.Id].CustomId = n.Id
+			tNodes[n.Id].Metadata = n
 		case FOLDER:
 			if n.Id == root.Id {
 				tNodes[n.Id] = rootNode
+				tNodes[n.Id].Metadata = *root
 			} else {
 				tNodes[n.Id] = NewDirEntry(genInode(), n.Name, KidsFunc)
 				tNodes[n.Id].Kids = []*TreeEntry{}
 				tNodes[n.Id].CustomId = n.Id
+				tNodes[n.Id].Metadata = n
 			}
 		}
 	}
@@ -93,45 +95,8 @@ func (this FS) Root() (fs.Node, error) {
 
 var greeting = "hello, world\n"
 
-func getKidsFunc(node *TreeEntry) []*TreeEntry {
-	if kids, ok := inodeKids[node.E.Inode]; ok {
-		// if exists in cache, use that
-		return kids
-	} else {
-		fmt.Println("building cached copy of kids")
-		// otherwise load it
-		apiList, err := ListNodes(fmt.Sprintf("nodes/%s/children", node.CustomId), apiClient, endpointCfg)
-		if err != nil {
-			log.Println(err)
-			return []*TreeEntry{}
-		}
-
-		kids := []*TreeEntry{}
-
-		for _, v := range apiList.Data {
-			var newNode *TreeEntry
-			switch v.Kind {
-			case "FILE":
-				newNode = NewFileEntry(genInode(), v.Name, getContentSize, getContent)
-				kids = append(kids, newNode)
-				break
-			case "FOLDER":
-				newNode = NewDirEntry(genInode(), v.Name, getKidsFunc)
-				kids = append(kids, newNode)
-				break
-			}
-
-			newNode.CustomId = v.Id
-			inodes[newNode.E.Inode] = newNode
-		}
-
-		inodeKids[node.E.Inode] = kids
-	}
-	return []*TreeEntry{}
-}
-
 func getContentSize(node *TreeEntry) uint64 {
-	return uint64(len(greeting))
+	return node.Metadata.ContentProperties.Size
 }
 func getContent(node *TreeEntry) ([]byte, error) {
 	return []byte(greeting), nil
