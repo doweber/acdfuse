@@ -39,3 +39,12 @@ func ListNodes(urlRequest string, client *http.Client, cfg *EndpointConfig) (lis
 
 	return
 }
+
+func DownloadContent(nodeId string, client *http.Client, cfg *EndpointConfig) (*http.Response, error) {
+	resp, err := client.Get(fmt.Sprintf("%s/nodes/%s/content", cfg.ContentUrl, nodeId))
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
+}

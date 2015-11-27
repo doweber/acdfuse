@@ -2,6 +2,7 @@ package acdfs
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/http"
 
 	"golang.org/x/oauth2"
@@ -99,5 +100,8 @@ func getContentSize(node *TreeEntry) uint64 {
 	return node.Metadata.ContentProperties.Size
 }
 func getContent(node *TreeEntry) ([]byte, error) {
-	return []byte(greeting), nil
+	resp, err := DownloadContent(node.CustomId, apiClient, endpointCfg)
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	return body, err
 }
