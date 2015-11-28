@@ -1,12 +1,15 @@
 package acdfs
 
 import (
+	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 
+	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 
+	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
 )
 
@@ -50,7 +53,7 @@ func (this FS) Root() (fs.Node, error) {
 	for _, n := range nodes {
 		switch n.Kind {
 		case FILE:
-			tNodes[n.Id] = NewFileEntry(genInode(), n.Name, getContentSize, getContent)
+			tNodes[n.Id] = NewFileEntry(genInode(), n.Name, getContentSize, readContent)
 			tNodes[n.Id].CustomId = n.Id
 			tNodes[n.Id].Metadata = n
 		case FOLDER:
@@ -99,9 +102,57 @@ var greeting = "hello, world\n"
 func getContentSize(node *TreeEntry) uint64 {
 	return node.Metadata.ContentProperties.Size
 }
+
+func readBytes(r io.Reader, p []byte, cnt int) (readCount int, err error) {
+	readCount, err = r.Read(p)
+
+	if readCount < cnt && err != io.EOF {
+		newCount := cnt - readCount
+		n := make([]byte, newCount)
+		newCount, err = readBytes(r, n, newCount)
+		p = append(p[:readCount], n[:newCount]...)
+		readCount += newCount
+	}
+
+	return
+}
+
+func readContent(node *TreeEntry, ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) (err error) {
+	var p []byte = make([]byte, req.Size)
+
+	// see if we already have an open body
+	if node.HttpResponse == nil {
+		fmt.Printf("starting to download %s\n", node.E.Name)
+		b, _ := json.Marshal(node.Metadata)
+		fmt.Println(string(b))
+		// get the reader
+		node.HttpResponse, err = DownloadContent(node.CustomId, apiClient, endpointCfg)
+		if err != nil {
+			return err
+		}
+	}
+
+	cnt, err := readBytes(node.HttpResponse.Body, p, req.Size)
+	if err == io.EOF {
+		fmt.Println("GOT EOF!!!")
+		err = nil
+		defer func() {
+			node.HttpResponse.Body.Close()
+			node.HttpResponse = nil
+		}()
+	}
+
+	resp.Data = p[:cnt]
+
+	return
+}
 func getContent(node *TreeEntry) ([]byte, error) {
 	resp, err := DownloadContent(node.CustomId, apiClient, endpointCfg)
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	return body, err
+	var p []byte
+	cnt, err := resp.Body.Read(p)
+	fmt.Printf("read %d bytes\n", cnt)
+	//body, err := ioutil.ReadAll(resp.Body)
+	//return body, err
+	return p, err
 }

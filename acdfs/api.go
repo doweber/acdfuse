@@ -46,5 +46,11 @@ func DownloadContent(nodeId string, client *http.Client, cfg *EndpointConfig) (*
 		return nil, err
 	}
 
+	if resp.StatusCode != 200 {
+		defer resp.Body.Close()
+		body, _ := ioutil.ReadAll(resp.Body)
+		log.Println("Error", resp.Status, string(body))
+	}
+
 	return resp, nil
 }

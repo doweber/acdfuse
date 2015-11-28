@@ -1,6 +1,7 @@
 package acdfs
 
 import (
+	"net/http"
 	"os"
 
 	"bazil.org/fuse"
@@ -10,7 +11,7 @@ import (
 
 type KidsCallbackFunc func(*TreeEntry) []*TreeEntry
 type SizeCallbackFunc func(*TreeEntry) uint64
-type ContentCallbackFunc func(*TreeEntry) ([]byte, error)
+type ContentCallbackFunc func(*TreeEntry, context.Context, *fuse.ReadRequest, *fuse.ReadResponse) error
 
 func KidsFunc(t *TreeEntry) []*TreeEntry {
 	return t.Kids
@@ -25,6 +26,7 @@ type TreeEntry struct {
 	kidsCallback    KidsCallbackFunc
 	sizeCallback    SizeCallbackFunc
 	contentCallback ContentCallbackFunc
+	HttpResponse    *http.Response
 }
 
 func NewDirEntry(inode uint64, name string, kidsCallback KidsCallbackFunc) *TreeEntry {
@@ -76,6 +78,10 @@ func (this *TreeEntry) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 	return dirDirs, nil
 }
 
-func (this *TreeEntry) ReadAll(ctx context.Context) ([]byte, error) {
-	return this.contentCallback(this)
+//func (this *TreeEntry) ReadAll(ctx context.Context) ([]byte, error) {
+//return this.contentCallback(this)
+//}
+
+func (this *TreeEntry) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
+	return this.contentCallback(this, ctx, req, resp)
 }
